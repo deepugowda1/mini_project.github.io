@@ -99,6 +99,64 @@ canvas{
     padding:20px;
     border-radius:12px;
 }
+    /* ================= MOBILE RESPONSIVE ================= */
+
+@media (max-width: 768px){
+
+    body{
+        flex-direction: column;
+    }
+
+    .sidebar{
+        width:100%;
+        height:auto;
+        position:relative;
+        display:flex;
+        justify-content:space-around;
+        align-items:center;
+    }
+
+    .sidebar h2{
+        display:none;
+    }
+
+    .sidebar a{
+        margin:10px;
+        font-size:14px;
+    }
+
+    .main{
+        margin-left:0;
+        padding:15px;
+    }
+
+    .filters{
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+    }
+
+    select{
+        width:100%;
+    }
+
+    .cards{
+        flex-direction:column;
+    }
+
+    .crop-img{
+        text-align:center;
+    }
+
+    .crop-img img{
+        width:80%;
+        max-width:250px;
+    }
+
+    canvas{
+        width:100% !important;
+    }
+}
 </style>
 </head>
 
