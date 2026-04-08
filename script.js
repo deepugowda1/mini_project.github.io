@@ -8,7 +8,7 @@ const districtEl = document.getElementById("district");
 const cropEl = document.getElementById("crop");
 
 // ===== API KEY (WORKING SAMPLE) =====
-const API_KEY = "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b";
+const API_KEY = "579b464db66ec23bdd000001a150ed118852412862c2111ed048c3fa";
 
 // ===== ALL CROPS =====
 const crops = [
