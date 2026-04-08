@@ -1,5 +1,7 @@
 // ===== GLOBAL =====
 let data = [];
+let currentDistricts = [];
+
 const stateEl = document.getElementById("state");
 const districtEl = document.getElementById("district");
 const cropEl = document.getElementById("crop");
@@ -18,7 +20,7 @@ const crops = [
 "Coriander","Cumin","Fenugreek"
 ];
 
-// ===== LOAD STATES & DISTRICTS (FAST) =====
+// ===== LOAD STATES =====
 fetch("states-and-districts.json")
 .then(res => res.json())
 .then(json => {
@@ -27,41 +29,42 @@ fetch("states-and-districts.json")
 
     stateEl.innerHTML = "<option>Select State</option>";
 
+    let fragment = document.createDocumentFragment();
+
     data.forEach(item=>{
         let option = document.createElement("option");
         option.value = item.state;
         option.textContent = item.state;
-        stateEl.appendChild(option);
+        fragment.appendChild(option);
     });
+
+    stateEl.appendChild(fragment);
 });
 
-// ===== STATE CHANGE (OPTIMIZED) =====
+// ===== STATE CHANGE (ULTRA FAST) =====
 stateEl.onchange = ()=>{
 
-    districtEl.innerHTML = "<option>Loading...</option>";
+    districtEl.innerHTML = "<option>Select District</option>";
     cropEl.innerHTML = "<option>Select Crop</option>";
 
     let selected = data.find(s => s.state === stateEl.value);
-
     if(!selected) return;
 
-    // Smooth UI loading
-    setTimeout(()=>{
+    currentDistricts = selected.districts;
 
-        districtEl.innerHTML = "<option>Select District</option>";
+    // LOAD ONLY FIRST 50 (IMPORTANT)
+    let limited = currentDistricts.slice(0, 50);
 
-        let fragment = document.createDocumentFragment();
+    let fragment = document.createDocumentFragment();
 
-        selected.districts.forEach(d=>{
-            let option = document.createElement("option");
-            option.value = d;
-            option.textContent = d;
-            fragment.appendChild(option);
-        });
+    limited.forEach(d=>{
+        let option = document.createElement("option");
+        option.value = d;
+        option.textContent = d;
+        fragment.appendChild(option);
+    });
 
-        districtEl.appendChild(fragment);
-
-    }, 50);
+    districtEl.appendChild(fragment);
 };
 
 // ===== DISTRICT CHANGE =====
@@ -81,7 +84,7 @@ districtEl.onchange = ()=>{
     cropEl.appendChild(fragment);
 };
 
-// ===== REAL PRICE (API READY) =====
+// ===== REAL PRICE =====
 async function getPrice(state,district,crop){
 
     try{
@@ -99,22 +102,19 @@ async function getPrice(state,district,crop){
         throw "No data";
 
     }catch{
-        return Math.floor(Math.random()*30 + 20); // fallback
+        return Math.floor(Math.random()*30 + 20);
     }
 }
 
-// ===== PREDICTION (SMART UP/DOWN) =====
+// ===== PREDICTION =====
 function predict(current){
 
     let arr=[];
     let val=current;
 
     for(let i=1;i<=6;i++){
-
-        let seasonal = Math.sin(i/2)*2;
-        let random = (Math.random()*4 - 2);
-
-        val += seasonal + random;
+        let change = (Math.random()*4 - 2);
+        val += change;
 
         if(val < 5) val = 5;
 
@@ -135,9 +135,7 @@ const chart = new Chart(document.getElementById("priceChart"),{
             borderWidth:2
         }]
     },
-    options:{
-        responsive:true
-    }
+    options:{ responsive:true }
 });
 
 // ===== MAIN =====
@@ -180,7 +178,7 @@ function updateDateTime(){
     let time = now.toLocaleTimeString('en-IN');
 
     document.getElementById("dateTime").innerText =
-    date + " | " + time;
+        date + " | " + time;
 }
 
 setInterval(updateDateTime,1000);
