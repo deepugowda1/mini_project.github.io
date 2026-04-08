@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,191 +9,60 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:'Poppins', sans-serif;
-}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif;}
+body{display:flex;background:#f4f6f9;}
 
-body{
-    display:flex;
-    background:#f4f6f9;
-}
-
-/* Sidebar */
 .sidebar{
-    width:250px;
-    height:100vh;
-    background:#1e293b;
-    color:white;
-    padding:20px;
-    position:fixed;
+    width:250px;height:100vh;background:#1e293b;color:white;
+    padding:20px;position:fixed;
 }
+.sidebar a{display:block;color:white;margin:12px 0;text-decoration:none;}
 
-.sidebar h2{
-    margin-bottom:30px;
-}
+.main{margin-left:250px;width:100%;padding:20px;}
 
-.sidebar a{
-    display:block;
-    color:white;
-    text-decoration:none;
-    margin:15px 0;
-    transition:0.3s;
-}
+.filters{margin-bottom:20px;display:flex;gap:10px;}
+select{padding:10px;border-radius:8px;border:1px solid #ccc;}
 
-.sidebar a:hover{
-    color:#38bdf8;
-}
-
-/* Main */
-.main{
-    margin-left:250px;
-    width:100%;
-    padding:20px;
-}
-
-/* Filters */
-.filters{
-    margin-bottom:20px;
-}
-
-select{
-    padding:10px;
-    margin-right:10px;
-    border-radius:8px;
-    border:1px solid #ccc;
-}
-
-/* Cards */
-.cards{
-    display:flex;
-    gap:20px;
-    flex-wrap:wrap;
-}
-
+.cards{display:flex;gap:20px;flex-wrap:wrap;}
 .card{
-    background:white;
-    padding:20px;
-    border-radius:12px;
-    flex:1;
-    min-width:200px;
-    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+    background:white;padding:20px;border-radius:12px;
+    flex:1;min-width:200px;
 }
 
-/* Crop Image */
-.crop-img{
-    margin-top:20px;
-}
+.crop-img{text-align:center;margin-top:20px;}
+.crop-img img{width:200px;border-radius:10px;}
 
-.crop-img img{
-    width:200px;
-    border-radius:10px;
-}
+canvas{margin-top:30px;background:white;padding:20px;border-radius:12px;}
 
-/* Chart */
-canvas{
-    margin-top:30px;
-    background:white;
-    padding:20px;
-    border-radius:12px;
-}
-    /* ================= MOBILE RESPONSIVE ================= */
-
-@media (max-width: 768px){
-
-    body{
-        flex-direction: column;
-    }
-
-    .sidebar{
-        width:100%;
-        height:auto;
-        position:relative;
-        display:flex;
-        justify-content:space-around;
-        align-items:center;
-    }
-
-    .sidebar h2{
-        display:none;
-    }
-
-    .sidebar a{
-        margin:10px;
-        font-size:14px;
-    }
-
-    .main{
-        margin-left:0;
-        padding:15px;
-    }
-
-    .filters{
-        display:flex;
-        flex-direction:column;
-        gap:10px;
-    }
-
-    select{
-        width:100%;
-    }
-
-    .cards{
-        flex-direction:column;
-    }
-
-    .crop-img{
-        text-align:center;
-    }
-
-    .crop-img img{
-        width:80%;
-        max-width:250px;
-    }
-
-    canvas{
-        width:100% !important;
-    }
+@media(max-width:768px){
+    body{flex-direction:column;}
+    .sidebar{width:100%;height:auto;display:flex;justify-content:space-around;}
+    .main{margin-left:0;}
+    .filters{flex-direction:column;}
+    select{width:100%;}
+    .cards{flex-direction:column;}
 }
 </style>
 </head>
 
 <body>
 
-<!-- Sidebar -->
 <div class="sidebar">
     <h2>AgriPredict</h2>
     <a href="#">Dashboard</a>
-    <a href="#">Prediction</a>
-    <a href="#">Market Trends</a>
-    <a href="#">Crop Info</a>
 </div>
 
-<!-- Main -->
 <div class="main">
 
-<h1>Crop Price Prediction</h1>
+<h3 id="dateTime"></h3>
+<h1>Crop Price Prediction (₹/kg)</h1>
 
-<!-- Filters -->
 <div class="filters">
-    <select id="state">
-        <option>Select State</option>
-        <option value="Karnataka">Karnataka</option>
-        <option value="Maharashtra">Maharashtra</option>
-    </select>
-
-    <select id="district">
-        <option>Select District</option>
-    </select>
-
-    <select id="crop">
-        <option>Select Crop</option>
-    </select>
+    <select id="state"></select>
+    <select id="district"></select>
+    <select id="crop"></select>
 </div>
 
-<!-- Cards -->
 <div class="cards">
     <div class="card">
         <h3>Current Price</h3>
@@ -202,7 +70,7 @@ canvas{
     </div>
 
     <div class="card">
-        <h3>Predicted Price</h3>
+        <h3>6-Month Prediction</h3>
         <p id="predictedPrice">₹ --</p>
     </div>
 
@@ -212,176 +80,15 @@ canvas{
     </div>
 </div>
 
-<!-- Crop Image -->
 <div class="crop-img">
     <img id="cropImage" src="https://via.placeholder.com/200">
 </div>
 
-<!-- Chart -->
 <canvas id="priceChart"></canvas>
 
 </div>
-<script>
 
-// ================= FULL INDIA STATES + DISTRICTS =================
-
-const data = {
-    Karnataka: {
-        "Bangalore Urban": [], "Mysore": [], "Hassan": [], "Mangalore": [], "Hubli": []
-    },
-    Maharashtra: {
-        "Mumbai": [], "Pune": [], "Nagpur": [], "Nashik": [], "Aurangabad": []
-    },
-    TamilNadu: {
-        "Chennai": [], "Coimbatore": [], "Madurai": [], "Salem": []
-    },
-    Kerala: {
-        "Ernakulam": [], "Trivandrum": [], "Kozhikode": []
-    },
-    UttarPradesh: {
-        "Lucknow": [], "Kanpur": [], "Varanasi": [], "Agra": []
-    },
-    Punjab: {
-        "Amritsar": [], "Ludhiana": [], "Patiala": []
-    },
-    Haryana: {
-        "Gurgaon": [], "Faridabad": [], "Panipat": []
-    },
-    Rajasthan: {
-        "Jaipur": [], "Udaipur": [], "Jodhpur": []
-    },
-    Gujarat: {
-        "Ahmedabad": [], "Surat": [], "Rajkot": []
-    },
-    WestBengal: {
-        "Kolkata": [], "Howrah": [], "Darjeeling": []
-    },
-    Bihar: {
-        "Patna": [], "Gaya": []
-    },
-    Telangana: {
-        "Hyderabad": [], "Warangal": []
-    },
-    AndhraPradesh: {
-        "Vijayawada": [], "Guntur": []
-    },
-    MadhyaPradesh: {
-        "Bhopal": [], "Indore": []
-    },
-    Odisha: {
-        "Bhubaneswar": [], "Cuttack": []
-    }
-};
-
-// ================= ALL INDIA CROPS =================
-
-const allCrops = [
-"Rice","Wheat","Maize","Barley","Ragi",
-"Toor Dal","Moong","Urad","Gram",
-"Groundnut","Mustard","Soybean","Sunflower",
-"Sugarcane","Cotton","Jute",
-"Tea","Coffee","Rubber",
-"Onion","Tomato","Potato","Brinjal","Cabbage","Cauliflower",
-"Carrot","Beans","Peas",
-"Mango","Banana","Apple","Grapes","Orange","Papaya","Pineapple",
-"Turmeric","Pepper","Cardamom","Clove","Chilli",
-"Coriander","Cumin","Fenugreek"
-];
-
-// ================= UPDATE STATE DROPDOWN =================
-
-const stateDropdown = document.getElementById("state");
-stateDropdown.innerHTML = "<option>Select State</option>";
-
-for(let state in data){
-    stateDropdown.innerHTML += `<option value="${state}">${state}</option>`;
-}
-
-// ================= STATE CHANGE =================
-
-document.getElementById("state").addEventListener("change", function(){
-    let districts = data[this.value];
-    let districtDropdown = document.getElementById("district");
-
-    districtDropdown.innerHTML = "<option>Select District</option>";
-
-    for(let d in districts){
-        districtDropdown.innerHTML += `<option value="${d}">${d}</option>`;
-    }
-
-    let cropDropdown = document.getElementById("crop");
-    cropDropdown.innerHTML = "<option>Select Crop</option>";
-
-    allCrops.forEach(crop => {
-        cropDropdown.innerHTML += `<option value="${crop}">${crop}</option>`;
-    });
-});
-
-// ================= DISTRICT CHANGE =================
-
-document.getElementById("district").addEventListener("change", function(){
-    let cropDropdown = document.getElementById("crop");
-
-    cropDropdown.innerHTML = "<option>Select Crop</option>";
-
-    allCrops.forEach(crop => {
-        cropDropdown.innerHTML += `<option value="${crop}">${crop}</option>`;
-    });
-});
-
-// ================= UPDATED CROP IMAGES ONLY =================
-
-const cropImages = {};
-
-allCrops.forEach(crop => {
-    cropImages[crop] = `https://source.unsplash.com/300x300/?${crop},agriculture,india`;
-});
-
-// fallback if image fails
-document.getElementById("cropImage").onerror = function(){
-    this.src = "https://source.unsplash.com/300x300/?farming";
-};
-
-// ================= WHEN CROP SELECTED =================
-
-document.getElementById("crop").addEventListener("change", function(){
-
-    let current = Math.floor(Math.random()*3000 + 1500);
-    let predicted = current + Math.floor(Math.random()*600);
-
-    document.getElementById("currentPrice").innerText = "₹ " + current;
-    document.getElementById("predictedPrice").innerText = "₹ " + predicted;
-    document.getElementById("market").innerText = "APMC Market";
-
-    document.getElementById("cropImage").src = cropImages[this.value];
-
-    chart.data.datasets[0].data = [
-        current-400,
-        current-200,
-        current,
-        current+100,
-        predicted
-    ];
-    chart.update();
-});
-
-// ================= CHART =================
-
-const ctx = document.getElementById('priceChart');
-
-const chart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Future'],
-        datasets: [{
-            label: 'Price Trend',
-            data: [2000,2100,2200,2300,2500],
-            borderWidth: 2
-        }]
-    }
-});
-
-</script>
+<script src="script.js"></script>
 
 </body>
 </html>
