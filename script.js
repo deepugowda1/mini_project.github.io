@@ -22,9 +22,15 @@ const crops = [
 fetch("states-and-districts.json")
 .then(res => res.json())
 .then(json => {
-    data = json;
+
+    data = {}; // important
+
+    json.states.forEach(item => {
+        data[item.state] = item.districts;
+    });
 
     stateEl.innerHTML = "<option>Select State</option>";
+
     Object.keys(data).forEach(state=>{
         stateEl.innerHTML += `<option value="${state}">${state}</option>`;
     });
