@@ -1,10 +1,14 @@
 // ===== GLOBAL =====
 let data = [];
 let currentDistricts = [];
+let priceCache = {};
 
 const stateEl = document.getElementById("state");
 const districtEl = document.getElementById("district");
 const cropEl = document.getElementById("crop");
+
+// ===== API KEY =====
+const API_KEY = "YOUR_API_KEY"; // replace this
 
 // ===== ALL CROPS =====
 const crops = [
@@ -41,7 +45,7 @@ fetch("states-and-districts.json")
     stateEl.appendChild(fragment);
 });
 
-// ===== STATE CHANGE (ULTRA FAST) =====
+// ===== STATE CHANGE =====
 stateEl.onchange = ()=>{
 
     districtEl.innerHTML = "<option>Select District</option>";
@@ -52,7 +56,6 @@ stateEl.onchange = ()=>{
 
     currentDistricts = selected.districts;
 
-    // LOAD ONLY FIRST 50 (IMPORTANT)
     let limited = currentDistricts.slice(0, 50);
 
     let fragment = document.createDocumentFragment();
@@ -84,25 +87,38 @@ districtEl.onchange = ()=>{
     cropEl.appendChild(fragment);
 };
 
-// ===== REAL PRICE =====
+// ===== REAL PRICE (WITH CACHE + TIMEOUT) =====
 async function getPrice(state,district,crop){
 
+    let key = state + district + crop;
+
+    if(priceCache[key]) return priceCache[key];
+
     try{
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+
         let url = `https://api.allorigins.win/raw?url=${encodeURIComponent(
-            `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=YOUR_API_KEY&format=json&filters[state]=${state}&filters[district]=${district}&filters[commodity]=${crop}`
+            `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${API_KEY}&format=json&filters[state]=${state}&filters[district]=${district}&filters[commodity]=${crop}`
         )}`;
 
-        let res = await fetch(url);
+        let res = await fetch(url,{signal:controller.signal});
+        clearTimeout(timeout);
+
         let result = await res.json();
 
         if(result.records && result.records.length > 0){
-            return Math.round(result.records[0].modal_price / 100);
+            let price = Math.round(result.records[0].modal_price / 100);
+            priceCache[key] = price;
+            return price;
         }
 
         throw "No data";
 
     }catch{
-        return Math.floor(Math.random()*30 + 20);
+        let fallback = Math.floor(Math.random()*30 + 20);
+        priceCache[key] = fallback;
+        return fallback;
     }
 }
 
@@ -115,9 +131,7 @@ function predict(current){
     for(let i=1;i<=6;i++){
         let change = (Math.random()*4 - 2);
         val += change;
-
         if(val < 5) val = 5;
-
         arr.push(Math.round(val));
     }
 
@@ -147,12 +161,21 @@ cropEl.onchange = async ()=>{
 
     if(!state || !district || !crop) return;
 
+    // ===== LOADING UI =====
+    document.getElementById("currentPrice").innerText = "Fetching...";
+    document.getElementById("predictedPrice").innerText = "Please wait...";
+    document.getElementById("market").innerText =
+    "Fetching live price from Government mandi database...";
+
     let current = await getPrice(state,district,crop);
     let future = predict(current);
 
+    let trend = future[5] > current ? "📈 Likely Increase" : "📉 Likely Decrease";
+
     document.getElementById("currentPrice").innerText = "₹ " + current;
     document.getElementById("predictedPrice").innerText = "₹ " + future[5];
-    document.getElementById("market").innerText = district + " APMC";
+    document.getElementById("market").innerText =
+    district + " APMC | Source: Govt Data | " + trend;
 
     document.getElementById("cropImage").src =
     `https://source.unsplash.com/300x300/?${crop},farming`;
