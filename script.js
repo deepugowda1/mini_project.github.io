@@ -7,8 +7,8 @@ const stateEl = document.getElementById("state");
 const districtEl = document.getElementById("district");
 const cropEl = document.getElementById("crop");
 
-// ===== API KEY =====
-const API_KEY = "YOUR_API_KEY"; // replace this
+// ===== API KEY (WORKING SAMPLE) =====
+const API_KEY = "579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b";
 
 // ===== ALL CROPS =====
 const crops = [
@@ -56,11 +56,9 @@ stateEl.onchange = ()=>{
 
     currentDistricts = selected.districts;
 
-    let limited = currentDistricts.slice(0, 50);
-
     let fragment = document.createDocumentFragment();
 
-    limited.forEach(d=>{
+    currentDistricts.forEach(d=>{
         let option = document.createElement("option");
         option.value = d;
         option.textContent = d;
@@ -87,7 +85,7 @@ districtEl.onchange = ()=>{
     cropEl.appendChild(fragment);
 };
 
-// ===== REAL PRICE (WITH CACHE + TIMEOUT) =====
+// ===== REAL PRICE (FAST + FIXED API) =====
 async function getPrice(state,district,crop){
 
     let key = state + district + crop;
@@ -95,20 +93,18 @@ async function getPrice(state,district,crop){
     if(priceCache[key]) return priceCache[key];
 
     try{
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-
         let url = `https://api.allorigins.win/raw?url=${encodeURIComponent(
-            `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${API_KEY}&format=json&filters[state]=${state}&filters[district]=${district}&filters[commodity]=${crop}`
+            `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${API_KEY}&format=json&limit=1&filters[state.keyword]=${state}&filters[district]=${district}&filters[commodity]=${crop}`
         )}`;
 
-        let res = await fetch(url,{signal:controller.signal});
-        clearTimeout(timeout);
-
+        let res = await fetch(url);
         let result = await res.json();
 
         if(result.records && result.records.length > 0){
+
+            // convert ₹/quintal → ₹/kg
             let price = Math.round(result.records[0].modal_price / 100);
+
             priceCache[key] = price;
             return price;
         }
@@ -129,9 +125,12 @@ function predict(current){
     let val=current;
 
     for(let i=1;i<=6;i++){
-        let change = (Math.random()*4 - 2);
+
+        let change = (Math.random()*6 - 3); // up/down realistic
         val += change;
+
         if(val < 5) val = 5;
+
         arr.push(Math.round(val));
     }
 
@@ -149,7 +148,10 @@ const chart = new Chart(document.getElementById("priceChart"),{
             borderWidth:2
         }]
     },
-    options:{ responsive:true }
+    options:{
+        responsive:true,
+        maintainAspectRatio:false
+    }
 });
 
 // ===== MAIN =====
@@ -161,28 +163,31 @@ cropEl.onchange = async ()=>{
 
     if(!state || !district || !crop) return;
 
-    // ===== LOADING UI =====
+    // ===== LOADING =====
     document.getElementById("currentPrice").innerText = "Fetching...";
     document.getElementById("predictedPrice").innerText = "Please wait...";
     document.getElementById("market").innerText =
-    "Fetching live price from Government mandi database...";
+    "Fetching Govt mandi data...";
 
     let current = await getPrice(state,district,crop);
     let future = predict(current);
 
-    let trend = future[5] > current ? "📈 Likely Increase" : "📉 Likely Decrease";
+    // ===== DECISION =====
+    let suggestion = "";
+    if(future[5] > current){
+        suggestion = "🟢 HOLD (Price may increase)";
+    } else {
+        suggestion = "🔴 SELL NOW (Price may drop)";
+    }
 
     document.getElementById("currentPrice").innerText = "₹ " + current;
     document.getElementById("predictedPrice").innerText = "₹ " + future[5];
     document.getElementById("market").innerText =
-    district + " APMC | Source: Govt Data | " + trend;
+    `${district} APMC | ${suggestion}`;
 
-    document.getElementById("cropImage").src =
-    `https://source.unsplash.com/300x300/?${crop},farming`;
-
+    // ===== GRAPH =====
     chart.data.labels = ["Now","M1","M2","M3","M4","M5","M6"];
     chart.data.datasets[0].data = [current,...future];
-
     chart.update();
 };
 
