@@ -7,7 +7,7 @@ const stateEl = document.getElementById("state");
 const districtEl = document.getElementById("district");
 const cropEl = document.getElementById("crop");
 
-// ===== API KEY (WORKING SAMPLE) =====
+// ===== API KEY =====
 const API_KEY = "579b464db66ec23bdd000001a150ed118852412862c2111ed048c3fa";
 
 // ===== ALL CROPS =====
@@ -85,7 +85,7 @@ districtEl.onchange = ()=>{
     cropEl.appendChild(fragment);
 };
 
-// ===== REAL PRICE (FAST + FIXED API) =====
+// ===== REAL PRICE (IMPROVED) =====
 async function getPrice(state,district,crop){
 
     let key = state + district + crop;
@@ -93,25 +93,32 @@ async function getPrice(state,district,crop){
     if(priceCache[key]) return priceCache[key];
 
     try{
-        let url = `https://api.allorigins.win/raw?url=${encodeURIComponent(
-            `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${API_KEY}&format=json&limit=1&filters[state.keyword]=${state}&filters[district]=${district}&filters[commodity]=${crop}`
-        )}`;
+
+        let url = `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${API_KEY}&format=json&limit=20&filters[state.keyword]=${state}`;
 
         let res = await fetch(url);
         let result = await res.json();
 
         if(result.records && result.records.length > 0){
 
-            // convert ₹/quintal → ₹/kg
-            let price = Math.round(result.records[0].modal_price / 100);
+            let match = result.records.find(r =>
+                r.district.toLowerCase().includes(district.toLowerCase()) &&
+                r.commodity.toLowerCase().includes(crop.toLowerCase())
+            );
 
-            priceCache[key] = price;
-            return price;
+            if(match){
+                let price = Math.round(match.modal_price / 100); // ₹/quintal → ₹/kg
+                priceCache[key] = price;
+                return price;
+            }
         }
 
-        throw "No data";
+        throw "No match";
 
-    }catch{
+    }catch(error){
+
+        console.log("API fallback used:", error);
+
         let fallback = Math.floor(Math.random()*30 + 20);
         priceCache[key] = fallback;
         return fallback;
@@ -125,8 +132,7 @@ function predict(current){
     let val=current;
 
     for(let i=1;i<=6;i++){
-
-        let change = (Math.random()*6 - 3); // up/down realistic
+        let change = (Math.random()*6 - 3);
         val += change;
 
         if(val < 5) val = 5;
@@ -174,31 +180,25 @@ cropEl.onchange = async ()=>{
 
     if(!state || !district || !crop) return;
 
-    // ===== LOADING =====
     document.getElementById("currentPrice").innerText = "Fetching...";
     document.getElementById("predictedPrice").innerText = "Please wait...";
-    document.getElementById("market").innerText =
-    "Fetching Govt mandi data...";
+    document.getElementById("market").innerText = "Fetching Govt mandi data...";
 
     let current = await getPrice(state,district,crop);
     let future = predict(current);
 
-    // ===== DECISION =====
-    let suggestion = "";
-    if(future[5] > current){
-        suggestion = "🟢 HOLD (Price may increase)";
-    } else {
-        suggestion = "🔴 SELL NOW (Price may drop)";
-    }
+    let suggestion = future[5] > current
+        ? "🟢 HOLD (Price may increase)"
+        : "🔴 SELL NOW (Price may drop)";
 
     document.getElementById("currentPrice").innerText = "₹ " + current;
     document.getElementById("predictedPrice").innerText = "₹ " + future[5];
     document.getElementById("market").innerText =
-    `${district} APMC | ${suggestion}`;
+        `${district} APMC | ${suggestion}`;
 
-    // ===== GRAPH =====
     chart.data.labels = ["Now","M1","M2","M3","M4","M5","M6"];
     chart.data.datasets[0].data = [current,...future];
+
     chart.update();
 };
 
