@@ -150,7 +150,18 @@ const chart = new Chart(document.getElementById("priceChart"),{
     },
     options:{
         responsive:true,
-        maintainAspectRatio:false
+        maintainAspectRatio:false,
+        plugins:{
+            legend:{
+                display:true,
+                position:'top'
+            }
+        },
+        scales:{
+            y:{
+                beginAtZero:false
+            }
+        }
     }
 });
 
