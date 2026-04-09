@@ -10,152 +10,113 @@ const cropEl = document.getElementById("crop");
 // ===== API KEY =====
 const API_KEY = "579b464db66ec23bdd000001a150ed118852412862c2111ed048c3fa";
 
-// ===== ALL CROPS =====
-const crops = [
-"Rice","Wheat","Maize","Ragi","Barley",
-"Toor Dal","Moong","Urad","Gram",
-"Groundnut","Soybean","Mustard","Sunflower",
-"Sugarcane","Cotton","Jute",
-"Tea","Coffee","Rubber",
-"Onion","Tomato","Potato","Brinjal","Cabbage","Cauliflower",
-"Carrot","Beans","Peas",
-"Mango","Banana","Apple","Grapes","Orange","Papaya","Pineapple",
-"Turmeric","Pepper","Cardamom","Clove","Chilli",
-"Coriander","Cumin","Fenugreek"
-];
+// ===== CROP MAPPING (CRITICAL FIX) =====
+const cropMap = {
+    "Toor Dal": "Arhar(Tur/Red Gram)(Whole)",
+    "Ragi": "Ragi (Finger Millet)",
+    "Chilli": "Dry Chillies",
+    "Gram": "Bengal Gram",
+    "Moong": "Green Gram",
+    "Urad": "Black Gram"
+};
+
+// ===== CROPS =====
+const crops = Object.keys({
+"Rice":1,"Wheat":1,"Maize":1,"Ragi":1,"Barley":1,
+"Toor Dal":1,"Moong":1,"Urad":1,"Gram":1,
+"Groundnut":1,"Soybean":1,"Mustard":1,"Sunflower":1,
+"Sugarcane":1,"Cotton":1,"Jute":1,
+"Tea":1,"Coffee":1,"Rubber":1,
+"Onion":1,"Tomato":1,"Potato":1,"Brinjal":1,"Cabbage":1,"Cauliflower":1,
+"Carrot":1,"Beans":1,"Peas":1,
+"Mango":1,"Banana":1,"Apple":1,"Grapes":1,"Orange":1,"Papaya":1,"Pineapple":1,
+"Turmeric":1,"Pepper":1,"Cardamom":1,"Clove":1,"Chilli":1,
+"Coriander":1,"Cumin":1,"Fenugreek":1
+});
 
 // ===== LOAD STATES =====
 fetch("states-and-districts.json")
 .then(res => res.json())
 .then(json => {
-
     data = json.states;
-
     stateEl.innerHTML = "<option>Select State</option>";
-
-    let fragment = document.createDocumentFragment();
 
     data.forEach(item=>{
         let option = document.createElement("option");
         option.value = item.state;
         option.textContent = item.state;
-        fragment.appendChild(option);
+        stateEl.appendChild(option);
     });
-
-    stateEl.appendChild(fragment);
 });
 
 // ===== STATE CHANGE =====
 stateEl.onchange = ()=>{
-
     districtEl.innerHTML = "<option>Select District</option>";
     cropEl.innerHTML = "<option>Select Crop</option>";
 
     let selected = data.find(s => s.state === stateEl.value);
     if(!selected) return;
 
-    currentDistricts = selected.districts;
-
-    let fragment = document.createDocumentFragment();
-
-    currentDistricts.forEach(d=>{
+    selected.districts.forEach(d=>{
         let option = document.createElement("option");
         option.value = d;
         option.textContent = d;
-        fragment.appendChild(option);
+        districtEl.appendChild(option);
     });
-
-    districtEl.appendChild(fragment);
 };
 
 // ===== DISTRICT CHANGE =====
 districtEl.onchange = ()=>{
-
     cropEl.innerHTML = "<option>Select Crop</option>";
-
-    let fragment = document.createDocumentFragment();
 
     crops.forEach(c=>{
         let option = document.createElement("option");
         option.value = c;
         option.textContent = c;
-        fragment.appendChild(option);
+        cropEl.appendChild(option);
     });
-
-    cropEl.appendChild(fragment);
 };
 
-// ===== REAL PRICE (FINAL FIXED VERSION) =====
+// ===== REAL PRICE (STRICT + ACCURATE) =====
 async function getPrice(state,district,crop){
 
-    let key = state + district + crop;
-
-    if(priceCache[key]) return priceCache[key];
+    let apiCrop = cropMap[crop] || crop;
 
     try{
+        let url = `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070
+        ?api-key=${API_KEY}
+        &format=json
+        &limit=1
+        &filters[state.keyword]=${state}
+        &filters[district]=${district}
+        &filters[commodity]=${apiCrop}`;
 
-        let url = `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${API_KEY}&format=json&limit=100&filters[state.keyword]=${state}`;
-
-        let res = await fetch(url);
+        let res = await fetch(url.replace(/\s/g,''));
         let result = await res.json();
 
         if(result.records && result.records.length > 0){
+            let r = result.records[0];
 
-            // ===== EXACT MATCH =====
-            let exact = result.records.find(r =>
-                r.district.toLowerCase() === district.toLowerCase() &&
-                r.commodity.toLowerCase() === crop.toLowerCase()
-            );
-
-            if(exact){
-                let price = Math.round(exact.modal_price / 100);
-                priceCache[key] = price;
-                return price;
-            }
-
-            // ===== PARTIAL MATCH =====
-            let partial = result.records.find(r =>
-                r.district.toLowerCase().includes(district.toLowerCase()) &&
-                r.commodity.toLowerCase().includes(crop.toLowerCase())
-            );
-
-            if(partial){
-                let price = Math.round(partial.modal_price / 100);
-                priceCache[key] = price;
-                return price;
-            }
+            return {
+                min: Math.round(r.min_price / 100),
+                max: Math.round(r.max_price / 100),
+                modal: Math.round(r.modal_price / 100),
+                date: r.arrival_date,
+                market: r.market
+            };
         }
 
-        throw "No match";
+        return null;
 
-    }catch(error){
-
-        console.log("API failed:", error);
-
-        // ===== SAFE FALLBACK (FIXED, NOT RANDOM) =====
-        let fallback = 25;
-
-        priceCache[key] = fallback;
-        return fallback;
+    }catch(err){
+        console.log(err);
+        return null;
     }
 }
 
-// ===== PREDICTION =====
+// ===== SIMPLE TREND (NO RANDOM NONSENSE) =====
 function predict(current){
-
-    let arr=[];
-    let val=current;
-
-    for(let i=1;i<=6;i++){
-        let change = (Math.random()*4 - 2); // small realistic variation
-        val += change;
-
-        if(val < 5) val = 5;
-
-        arr.push(Math.round(val));
-    }
-
-    return arr;
+    return Math.round(current * 1.05); // +5%
 }
 
 // ===== CHART =====
@@ -171,18 +132,7 @@ const chart = new Chart(document.getElementById("priceChart"),{
     },
     options:{
         responsive:true,
-        maintainAspectRatio:false,
-        plugins:{
-            legend:{
-                display:true,
-                position:'top'
-            }
-        },
-        scales:{
-            y:{
-                beginAtZero:false
-            }
-        }
+        maintainAspectRatio:false
     }
 });
 
@@ -195,48 +145,43 @@ cropEl.onchange = async ()=>{
 
     if(!state || !district || !crop) return;
 
-    // ===== LOADING =====
     document.getElementById("currentPrice").innerText = "Fetching...";
-    document.getElementById("predictedPrice").innerText = "Please wait...";
-    document.getElementById("market").innerText = "Fetching Govt mandi data...";
+    document.getElementById("predictedPrice").innerText = "--";
+    document.getElementById("market").innerText = "Fetching Govt data...";
 
-    let current = await getPrice(state,district,crop);
-    let future = predict(current);
+    let data = await getPrice(state,district,crop);
 
-    // ===== DECISION =====
-    let suggestion = future[5] > current
-        ? "🟢 HOLD (Price may increase)"
-        : "🔴 SELL NOW (Price may drop)";
+    if(!data){
+        document.getElementById("currentPrice").innerText = "No Data Available";
+        document.getElementById("market").innerText = "Try another crop/market";
+        return;
+    }
 
-    document.getElementById("currentPrice").innerText = "₹ " + current;
-    document.getElementById("predictedPrice").innerText = "₹ " + future[5];
+    let prediction = predict(data.modal);
+
+    let suggestion = prediction > data.modal
+        ? "🟢 HOLD"
+        : "🔴 SELL";
+
+    document.getElementById("currentPrice").innerText =
+        `₹ ${data.min} - ₹ ${data.max}`;
+
+    document.getElementById("predictedPrice").innerText =
+        `₹ ${prediction}`;
+
     document.getElementById("market").innerText =
-        `${district} APMC | Govt Data | ${suggestion}`;
+        `${data.market} | Updated: ${data.date} | ${suggestion}`;
 
-    // ===== GRAPH =====
-    chart.data.labels = ["Now","M1","M2","M3","M4","M5","M6"];
-    chart.data.datasets[0].data = [current,...future];
-
+    chart.data.labels = ["Now","Next"];
+    chart.data.datasets[0].data = [data.modal, prediction];
     chart.update();
 };
 
-// ===== LIVE DATE & TIME =====
+// ===== DATE =====
 function updateDateTime(){
-
     let now = new Date();
-
-    let date = now.toLocaleDateString('en-IN',{
-        weekday:'long',
-        year:'numeric',
-        month:'long',
-        day:'numeric'
-    });
-
-    let time = now.toLocaleTimeString('en-IN');
-
     document.getElementById("dateTime").innerText =
-        date + " | " + time;
+        now.toLocaleString('en-IN');
 }
-
 setInterval(updateDateTime,1000);
 updateDateTime();
