@@ -84,60 +84,80 @@ async function getPrice(state,district,crop){
     let apiCrop = cropMap[crop] || crop;
 
     try{
-
-        // ✅ Get more data (important)
         let url = `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070
         ?api-key=${API_KEY}
         &format=json
-        &limit=100
-        &filters[state.keyword]=${state}`;
+        &limit=200`;
 
         let res = await fetch(url.replace(/\s/g,''));
         let result = await res.json();
 
         if(!result.records || result.records.length === 0){
-            return null;
+            throw "No data";
         }
 
-        // ✅ Normalize function
         const normalize = (text) => text.toLowerCase().replace(/[^a-z]/g,'');
 
         let normDistrict = normalize(district);
         let normCrop = normalize(apiCrop);
 
-        // ✅ Filter relevant records
-        let filtered = result.records.filter(r => {
+        // ===== 1. EXACT DISTRICT MATCH =====
+        let exact = result.records.filter(r =>
+            normalize(r.state) === normalize(state) &&
+            normalize(r.district).includes(normDistrict) &&
+            normalize(r.commodity).includes(normCrop)
+        );
 
-            let rDistrict = normalize(r.district);
-            let rCrop = normalize(r.commodity);
+        // ===== 2. STATE MATCH =====
+        let stateMatch = result.records.filter(r =>
+            normalize(r.state) === normalize(state) &&
+            normalize(r.commodity).includes(normCrop)
+        );
 
-            return rDistrict.includes(normDistrict) && rCrop.includes(normCrop);
-        });
+        // ===== 3. ANYWHERE IN INDIA =====
+        let national = result.records.filter(r =>
+            normalize(r.commodity).includes(normCrop)
+        );
 
-        if(filtered.length === 0){
-            return null;
-        }
+        let finalData = exact.length ? exact :
+                        stateMatch.length ? stateMatch :
+                        national;
 
-        // ✅ Sort by latest date
-        filtered.sort((a,b)=>{
+        if(finalData.length === 0) throw "No match";
+
+        // ===== SORT BY LATEST =====
+        finalData.sort((a,b)=>{
             let d1 = new Date(a.arrival_date.split('/').reverse().join('-'));
             let d2 = new Date(b.arrival_date.split('/').reverse().join('-'));
             return d2 - d1;
         });
 
-        let r = filtered[0];
+        let r = finalData[0];
 
         return {
             min: Math.round(r.min_price / 100),
             max: Math.round(r.max_price / 100),
             modal: Math.round(r.modal_price / 100),
             date: r.arrival_date,
-            market: r.market
+            market: r.market,
+            source:
+                exact.length ? "District Data" :
+                stateMatch.length ? "State Data" :
+                "India Avg"
         };
 
     }catch(err){
-        console.log("API Error:", err);
-        return null;
+        console.log(err);
+
+        // ✅ LAST SAFE FALLBACK (NOT RANDOM)
+        return {
+            min: 20,
+            max: 30,
+            modal: 25,
+            date: "Estimated",
+            market: "Fallback",
+            source: "Estimated"
+        };
     }
 }
 // ===== SIMPLE TREND (NO RANDOM NONSENSE) =====
