@@ -3,6 +3,7 @@ let data = [];
 let currentDistricts = [];
 let priceCache = {};
 
+
 const stateEl = document.getElementById("state");
 const districtEl = document.getElementById("district");
 const cropEl = document.getElementById("crop");
