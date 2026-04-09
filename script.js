@@ -94,7 +94,7 @@ async function getPrice(state,district,crop){
 
     try{
 
-        let url = `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${API_KEY}&format=json&limit=20&filters[state.keyword]=${state}`;
+        let url = `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=${API_KEY}&format=json&limit=100&filters[state.keyword]=${state}`;
 
         let res = await fetch(url);
         let result = await res.json();
