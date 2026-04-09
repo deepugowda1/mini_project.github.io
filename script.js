@@ -3,7 +3,6 @@ let data = [];
 let currentDistricts = [];
 let priceCache = {};
 
-
 const stateEl = document.getElementById("state");
 const districtEl = document.getElementById("district");
 const cropEl = document.getElementById("crop");
@@ -161,9 +160,23 @@ async function getPrice(state,district,crop){
         };
     }
 }
-// ===== SIMPLE TREND (NO RANDOM NONSENSE) =====
 function predict(current){
-    return Math.round(current * 1.05); // +5%
+
+    let change;
+
+    if(current > 50){
+        change = -0.03;
+    } 
+    else if(current < 20){
+        change = 0.04;
+    } 
+    else{
+        change = (Math.random()*0.06 - 0.03);
+    }
+
+    let predicted = current + (current * change);
+
+    return Math.round(predicted);
 }
 
 // ===== CHART =====
@@ -172,10 +185,13 @@ const chart = new Chart(document.getElementById("priceChart"),{
     data:{
         labels:[],
         datasets:[{
-            label:"₹/kg Trend",
-            data:[],
-            borderWidth:2
-        }]
+    label:"₹/kg Trend",
+    data:[],
+    borderWidth:2,
+    tension:0.4,          // ✅ THIS MAKES CURVE
+    fill:true,            // optional (nice look)
+    pointRadius:4         // better visibility
+}]
     },
     options:{
         responsive:true,
@@ -219,8 +235,14 @@ cropEl.onchange = async ()=>{
     document.getElementById("market").innerText =
         `${data.market} | Updated: ${data.date} | ${suggestion}`;
 
-    chart.data.labels = ["Now","Next"];
-    chart.data.datasets[0].data = [data.modal, prediction];
+    let values = [data.modal];
+
+for(let i=0;i<6;i++){
+    values.push(predict(values[i]));
+}
+
+chart.data.labels = ["Now","M1","M2","M3","M4","M5","M6"];
+chart.data.datasets[0].data = values;
     chart.update();
 };
 
