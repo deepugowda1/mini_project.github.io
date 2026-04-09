@@ -78,42 +78,68 @@ districtEl.onchange = ()=>{
 };
 
 // ===== REAL PRICE (STRICT + ACCURATE) =====
+// ===== REAL PRICE (ROBUST + EXAM SAFE) =====
 async function getPrice(state,district,crop){
 
     let apiCrop = cropMap[crop] || crop;
 
     try{
+
+        // ✅ Get more data (important)
         let url = `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070
         ?api-key=${API_KEY}
         &format=json
-        &limit=1
-        &filters[state.keyword]=${state}
-        &filters[district]=${district}
-        &filters[commodity]=${apiCrop}`;
+        &limit=100
+        &filters[state.keyword]=${state}`;
 
         let res = await fetch(url.replace(/\s/g,''));
         let result = await res.json();
 
-        if(result.records && result.records.length > 0){
-            let r = result.records[0];
-
-            return {
-                min: Math.round(r.min_price / 100),
-                max: Math.round(r.max_price / 100),
-                modal: Math.round(r.modal_price / 100),
-                date: r.arrival_date,
-                market: r.market
-            };
+        if(!result.records || result.records.length === 0){
+            return null;
         }
 
-        return null;
+        // ✅ Normalize function
+        const normalize = (text) => text.toLowerCase().replace(/[^a-z]/g,'');
+
+        let normDistrict = normalize(district);
+        let normCrop = normalize(apiCrop);
+
+        // ✅ Filter relevant records
+        let filtered = result.records.filter(r => {
+
+            let rDistrict = normalize(r.district);
+            let rCrop = normalize(r.commodity);
+
+            return rDistrict.includes(normDistrict) && rCrop.includes(normCrop);
+        });
+
+        if(filtered.length === 0){
+            return null;
+        }
+
+        // ✅ Sort by latest date
+        filtered.sort((a,b)=>{
+            let d1 = new Date(a.arrival_date.split('/').reverse().join('-'));
+            let d2 = new Date(b.arrival_date.split('/').reverse().join('-'));
+            return d2 - d1;
+        });
+
+        let r = filtered[0];
+
+        return {
+            min: Math.round(r.min_price / 100),
+            max: Math.round(r.max_price / 100),
+            modal: Math.round(r.modal_price / 100),
+            date: r.arrival_date,
+            market: r.market
+        };
 
     }catch(err){
-        console.log(err);
+        console.log("API Error:", err);
         return null;
     }
 }
-
 // ===== SIMPLE TREND (NO RANDOM NONSENSE) =====
 function predict(current){
     return Math.round(current * 1.05); // +5%
