@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://deepugowda1.github.io/mini_project.github.io/sitemap.xml
